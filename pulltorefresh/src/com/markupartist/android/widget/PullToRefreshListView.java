@@ -12,13 +12,14 @@ import android.view.ViewGroup;
 import android.view.animation.LinearInterpolator;
 import android.view.animation.RotateAnimation;
 import android.widget.AbsListView;
+import android.widget.AbsListView.OnScrollListener;
+import android.widget.HeaderViewListAdapter;
 import android.widget.ImageView;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
-import android.widget.AbsListView.OnScrollListener;
 
 import com.markupartist.android.widget.pulltorefresh.R;
 
@@ -50,6 +51,7 @@ public class PullToRefreshListView extends ListView implements OnScrollListener 
 
     private int mRefreshViewHeight;
     private int mRefreshOriginalTopPadding;
+    private int mRefreshOriginalBottomPadding; 
     private int mLastMotionY;
     private int mHeight = -1;
 
@@ -94,11 +96,13 @@ public class PullToRefreshListView extends ListView implements OnScrollListener 
         // Refresh view
 		mRefreshView = (RelativeLayout) inflater.inflate(
 				R.layout.pull_to_refresh_header, this, false);
+		mRefreshView.setBackgroundColor(0xFFD9D9D9);
 		mRefreshView.setOnClickListener(new OnClickRefreshListener());
 
 		// The refresh view text label
 		mRefreshViewText =
             (TextView) mRefreshView.findViewById(R.id.pull_to_refresh_text);
+		mRefreshViewText.setTextColor(0xFFFFFFFF);
 
 		// The arrow
 		mRefreshViewImage =
@@ -116,9 +120,11 @@ public class PullToRefreshListView extends ListView implements OnScrollListener 
         mFooterView = new TextView(context);
         mFooterView.setText(" ");
         mFooterView.setHeight(0);
+        mFooterView.setBackgroundColor(0xFFE9E9E9);
         addFooterView(mFooterView, null, false);
 
         mRefreshOriginalTopPadding = mRefreshView.getPaddingTop();
+        mRefreshOriginalBottomPadding = mRefreshView.getPaddingBottom();
         addHeaderView(mRefreshView);
 
         measureView(mRefreshView);
@@ -144,8 +150,8 @@ public class PullToRefreshListView extends ListView implements OnScrollListener 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        if (mHeight == -1) {  // do it only once
-            mHeight = getHeight(); // getHeight only returns useful data after first onDraw()
+        if (mHeight == -1 ) {  // do it only once
+            mHeight = getHeight();
             adaptFooterHeight();
         }
     }
@@ -156,11 +162,17 @@ public class PullToRefreshListView extends ListView implements OnScrollListener 
     private void adaptFooterHeight() {
         int itemHeight = getTotalItemHeight();
         int footerAndHeaderSize = mFooterView.getHeight()
-            + (mRefreshViewHeight - mRefreshOriginalTopPadding);
+            + (mRefreshViewHeight + mRefreshOriginalTopPadding + mRefreshOriginalBottomPadding);
         int actualItemsSize = itemHeight - footerAndHeaderSize;
         if (mHeight < actualItemsSize) {
             mFooterView.setHeight(0);
-        } else {
+        }
+        else if(actualItemsSize < 0)
+        {
+            mFooterView.setHeight(0);
+            setSelection(0);
+        }
+        else {
             int h = mHeight - actualItemsSize;
             mFooterView.setHeight(h);
             setSelection(1);
@@ -177,12 +189,16 @@ public class PullToRefreshListView extends ListView implements OnScrollListener 
     private int getTotalItemHeight() {
         ListAdapter adapter = getAdapter();
         int listviewElementsheight = 0;
-        for(int i =0; i < adapter.getCount(); i++) {
+        int itemCount = adapter.getCount();
+        for(int i =0; i < itemCount; i++) {
             View mView  = adapter.getView(i, null, this);
             mView.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
                     MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
             listviewElementsheight+= mView.getMeasuredHeight();
         }
+        
+        int divHeight = getDividerHeight();
+        listviewElementsheight += (divHeight *(itemCount));
         return listviewElementsheight;
     }
 
@@ -199,6 +215,11 @@ public class PullToRefreshListView extends ListView implements OnScrollListener 
 
         super.setAdapter(adapter);
 
+//        adaptFooterHeight();
+        //this is a hack to ensure that an already displaying/being drawn
+        //view redetermines the footer spacing
+        mHeight = -1;
+        
         setSelection(1);
     }
 
@@ -433,15 +454,14 @@ public class PullToRefreshListView extends ListView implements OnScrollListener 
     /**
      * Resets the list to a normal state after a refresh.
      */
-    public void onRefreshComplete() {        
+    public void onRefreshComplete() {   
         resetHeader();
-
         // If refresh view is visible when loading completes, scroll down to
         // the next item.
         if (mRefreshView.getBottom() > 0) {
             invalidateViews();
             setSelection(1);
-        }
+        }     
     }
 
     /**
