@@ -102,7 +102,7 @@ public class PullToRefreshListView extends ListView implements OnScrollListener 
 		// The refresh view text label
 		mRefreshViewText =
             (TextView) mRefreshView.findViewById(R.id.pull_to_refresh_text);
-		mRefreshViewText.setTextColor(0xFFFFFFFF);
+//		mRefreshViewText.setTextColor(0xFFFFFFFF);
 
 		// The arrow
 		mRefreshViewImage =
